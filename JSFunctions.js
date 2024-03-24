@@ -35,7 +35,7 @@ let oGameData = {};
 oGameData.initGlobalObject = function() {
 
     //Datastruktur för vilka platser som är lediga respektive har brickor
-    oGameData.gameField = Array('', '', '', '', '', '', '', '', '');https://canvas.kau.se/
+    oGameData.gameField = Array('', '', '', '', '', '', '', '', '');
     
     /* Testdata för att testa rättningslösning */
     //oGameData.gameField = Array('X', 'X', 'X', '', '', '', '', '', '');
@@ -250,11 +250,11 @@ function validateForm() {
          * kastar ett Error om de har samma färg eller om spelarna har vit eller svart färg
          */
 
-        if(colorPlayerOne === "#FFFFFF" || colorPlayerOne === "#000000" || colorPlayerOne === colorPlayerTwo){
+        if(colorPlayerOne === "#ffffff" || colorPlayerOne === "#000000" || colorPlayerOne === colorPlayerTwo){
             throw new Error("Färg får inte vara svart, vit eller samma som andra spelaren."); // Valda färger får INTE vara vit, svart eller lika för båda spelarna
         }
 
-        if(colorPlayerTwo === "#FFFFFF" || colorPlayerTwo === "#000000" || colorPlayerTwo === colorPlayerOne){
+        if(colorPlayerTwo === "#ffffff" || colorPlayerTwo === "#000000" || colorPlayerTwo === colorPlayerOne){
             throw new Error("Färg får inte vara svart, vit eller samma som andra spelaren.");
         }
 
@@ -364,44 +364,76 @@ function initiateGame() { // Metoden här tar inga invärden och har inget retur
     }
     console.log("rubriken är nu uppdaterad"); // kontrollerar att rubriken har uppdaterats
 
-    var table = document.querySelector("#game-area table"); //Väljer spelplanen
-
-    table.addEventListener("click", function(e){ //Lägger en lyssnare som lyssnar efter klick på spelrutorna
-        if(e.target.tagName === "TD"){ //Kollar om det man klickade på var en tabell(Spelplanen)
-            executeMove(e.target); //Anropar funktionen executeMove med den tabell(ruta) man klickade på
-            //console.log("Lyssnaren funkar om man klickar på en ruta"); 
-        }
-    });
+    // Lägger till en lyssnare på tabellen innehållande spelplanen som lyssnar efter händelsen ”klick”
+    let gameTable = document.querySelector("#game-area table");
+    gameTable.addEventListener("click", executeMove);
+    console.log("Lyssnare på tabellen");
 
 }
 
-function executeMove(clickedCell) {
 
-    let cellIndex = parseInt(clickedCell.dataset.id); 
+function executeMove(event) {
 
-    let jumbotron = document.querySelector(".jumbotron h1");
+    // Hämta den klickade cellen
+    let clickedCell = event.target;
 
-    if(oGameData.gameField[cellIndex] === ""){ //Kollar om rutan man klickade i är tom
-        oGameData.gameField[cellIndex] = oGameData.currentPlayer;
-        
+    // Hämta data-id-attributet från den klickade cellen
+    let cellId = clickedCell.getAttribute("data-id");
+
+    // Kontrollera om den klickade cellen är ledig
+    if (oGameData.gameField[cellId] === "") {
+        console.log("Den klickade cellen är ledig"); // kontrollerar via console för att bekräfta att cellen är ledig
+
+        // Sätt oGameData.gameField på den hämtade positionen (data-id) till nuvarande spelare (oGameData.currentPlayer)
+        oGameData.gameField[cellId] = oGameData.currentPlayer;
+
+        // Sätt textinnehållet till rätt symbol (X eller O)
         clickedCell.textContent = oGameData.currentPlayer;
 
-        //console.log("Rutan är tom och " + oGameData.currentPlayer + " placerade på rutan " + cellIndex);
+        // Sätt bakgrundsfärgen på tabellcellen till aktuell spelares färg
+        let color = oGameData.currentPlayer === oGameData.playerOne ? oGameData.colorPlayerOne : oGameData.colorPlayerTwo;
+        clickedCell.style.backgroundColor = color;
 
-        if(oGameData.currentPlayer === oGameData.playerOne){
-            clickedCell.style.backgroundColor = oGameData.colorPlayerOne; //Bakgrundsfärgen som spelare ett valde sätts som bakgrund
-            oGameData.currentPlayer = oGameData.playerTwo; //När spelare ett har gjort sitt drag så blir det spelare två tur
-            jumbotron.textContent = "Aktuell spelare är " + oGameData.nickNamePlayerOne + " (" + oGameData.playerTwo + ")"; //Uppdaterar texten i jumbatronen till aktuell spelare
-            console.log("playerOne tur");
-        } else {
-            clickedCell.style.backgroundColor = oGameData.colorPlayerTwo; //Bakgrundsfärgen som spelare två valde sätts som bakgrund
-            oGameData.currentPlayer = oGameData.playerOne; //När spelare två har gjort sitt drag så blir det spelare ett tur
-            jumbotron.textContent = "Aktuell spelare är " + oGameData.nickNamePlayerTwo + " (" + oGameData.playerOne + ")"; 
-            console.log("playerTwo tur");
+        // Ändra currentPlayer till den andra spelaren
+        oGameData.currentPlayer = oGameData.currentPlayer === oGameData.playerOne ? oGameData.playerTwo : oGameData.playerOne;
+
+        // Uppdatera texten i <h1> rubriken inuti jumbotronen för att visa vems tur det är att göra nästa drag
+        let jumbotron = document.querySelector(".jumbotron h1");
+        let nextPlayerName = oGameData.currentPlayer === oGameData.playerOne ? oGameData.nickNamePlayerOne : oGameData.nickNamePlayerTwo;
+        jumbotron.textContent = "Aktuell spelare är " + nextPlayerName + " (" + oGameData.currentPlayer + ")";
+
+        // Kontrollera om spelet är slut genom att anropa checkForGameOver
+        let gameOverStatus = oGameData.checkForGameOver();
+        if (gameOverStatus !== 0) {
+            console.log("Spelet är slut."); // Konsollutskrift för att indikera att spelet är slut
+
+            // Ta bort lyssnaren (klick) på tabellen
+            let gameTable = document.querySelector("#game-area table");
+            gameTable.removeEventListener("click", executeMove);
+
+            // Ta bort klassen ”d-none” på formuläret
+            let form = document.querySelector("#div-in-form");
+            form.classList.remove("d-none");
+
+            // Skriv ut vinnarmeddelande eller oavgjortmeddelande
+            let resultMessage;
+            if (gameOverStatus === 1 || gameOverStatus === 2) {
+                let winnerName = gameOverStatus === 1 ? oGameData.nickNamePlayerOne : oGameData.nickNamePlayerTwo;
+                resultMessage = "Vinnare: " + winnerName + " (" + (gameOverStatus === 1 ? oGameData.playerOne : oGameData.playerTwo) + ")";
+            } else {
+                resultMessage = "Oavgjort!";
+            }
+            jumbotron.textContent = resultMessage + " Spela igen?"; // Uppdatera rubriken med vinnarens namn eller "Oavgjort!"
+            console.log(resultMessage + " Spela igen?");
+
+            // Lägg till klassen ”d-none” på elementet med id=game-area
+            let gameArea = document.querySelector("#game-area");
+            gameArea.classList.add("d-none");
+
+            // Anropa metoden ” initGlobalObject” i oGameData
+            oGameData.initGlobalObject();
         }
-
     } else {
-        console.log("Rutan är upptagen, välj en ny ruta");
+        console.log("Den klickade cellen är inte ledig."); // Konsollutskrift om cellen inte är ledig
     }
-
 }
